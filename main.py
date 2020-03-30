@@ -1,8 +1,10 @@
 import gi
-
+from service import ServiceWindow
+from general import GeneralWindow
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
-
+from gi.repository import Gtk, GdkPixbuf
+from threading import Thread
+from time import sleep
 BOTTOM = Gtk.PositionType.BOTTOM
 LEFT = Gtk.PositionType.LEFT
 RIGHT = Gtk.PositionType.RIGHT
@@ -11,8 +13,32 @@ TOP = Gtk.PositionType.TOP
 
 class MyWindow(Gtk.Window):
     def __init__(self):
-        Gtk.Window.__init__(self, title="Hello World")
-        self.set_border_width(5)
+        Gtk.Window.__init__(self, title="CCNC-SDTC V2.0", border_width=5)
+
+        # Menu
+        self.mb = Gtk.MenuBar()
+        self.menu1 = Gtk.Menu()
+        self.fileMenu = Gtk.MenuItem(label="File")
+        self.fileMenu.set_submenu(None)
+
+        self.menu2 = Gtk.Menu()
+        self.toolsMenu = Gtk.MenuItem(label="Tools")
+        self.serviceMenu = Gtk.MenuItem(label="Service")
+        self.serviceMenu.connect("activate", self.on_menu_click)
+        self.generalMenu = Gtk.MenuItem(label="General Setup")
+        self.generalMenu.connect("activate", self.on_menu_click)
+        self.toolsMenu.set_submenu(self.menu2)
+        self.menu2.append(self.serviceMenu)
+        self.menu2.append(self.generalMenu)
+
+        self.menu3 = Gtk.Menu()
+        self.helpMenu = Gtk.MenuItem(label="Help")
+        self.helpMenu.set_submenu(None)
+
+        self.mb.append(self.fileMenu)
+        self.mb.append(self.toolsMenu)
+        self.mb.append(self.helpMenu)
+        # self.serviceButton = Gtk.MenuItem()
 
         # Command Frame
         self.button1 = Gtk.Button(label="Start Single")
@@ -102,22 +128,29 @@ class MyWindow(Gtk.Window):
         self.statusFrame.add(self.statusGrid)
 
         # Camera Frame
-        self.camera_view = Gtk.DrawingArea()
-        self.cameraFrame = Gtk.Frame(label="CameraA")
+        self.camera_view = Gtk.Image()
+        self.cameraFrame = Gtk.Frame(label="Camera")
         self.cameraFrame.add(self.camera_view)
+        self.cameraFrame.set_size_request(600, 600)
 
         # Add all Widgets to main Grid
         self.grid = Gtk.Grid(border_width=5, column_spacing=5, row_spacing=5)
-        # self.grid.set_column_homogeneous(True)
-        # self.grid.set_row_homogeneous(True)
         self.grid.attach(self.saturationFrame, 1, 1, 1, 1)
         self.grid.attach_next_to(sibling=self.saturationFrame, child=self.measurementsFrame, side=RIGHT, width=1, height=1)
         self.grid.attach_next_to(sibling=self.saturationFrame, child=self.statusFrame, side=BOTTOM, width=1, height=1)
         self.grid.attach_next_to(sibling=self.statusFrame, child=self.commandFrame, side=BOTTOM, width=1, height=1)
-        self.grid.attach_next_to(sibling=self.measurementsFrame, child=self.cameraFrame, side=LEFT, width=1, height=1)
+        self.grid.attach_next_to(sibling=self.measurementsFrame, child=self.cameraFrame, side=RIGHT, width=1, height=3)
 
         # Add grid to main window
-        self.add(self.grid)
+        self.vbox = Gtk.VBox(False, 2)
+        self.vbox.pack_start(self.mb, False, False, 0)
+        self.vbox.pack_start(self.grid, False, False, 0)
+
+        self.add(self.vbox)
+
+        # Start image update Thread
+        self.update_image_thread = Thread(target=self.update_image, daemon=True)
+        self.update_image_thread.start()
 
     def on_button_clicked(self, widget):
         cbs = ""
@@ -129,6 +162,31 @@ class MyWindow(Gtk.Window):
             cbs = cbs + " cb3"
 
         print(widget.get_label())
+
+    def on_menu_click(self, widget):
+        if widget.get_label() == "Service":
+            swindow = ServiceWindow()
+            swindow.show_all()
+        elif widget.get_label() == "General Setup":
+            gwindow = GeneralWindow()
+            gwindow.show_all()
+
+    def update_image(self):
+        while True:
+            try:
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                    filename="image.png",
+                    width=600,
+                    height=600,
+                    preserve_aspect_ratio=True)
+            except:
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                    filename="notfound.png",
+                    width=600,
+                    height=600,
+                    preserve_aspect_ratio=True)
+            self.camera_view.set_from_pixbuf(pixbuf)
+            sleep(5)
 
 
 if __name__ == '__main__':
